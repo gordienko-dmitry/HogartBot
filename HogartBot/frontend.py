@@ -2,10 +2,12 @@ import telebot
 from telebot import types
 import texts as t
 from example_data import articles as arts
-from config import TOKEN
+from config import TOKEN, Botan_key
 import requests
 from yandex_speech import speech_to_text
 from yandex_speech import SpeechException
+import botan
+
 
 bot = telebot.TeleBot(TOKEN)
 m_art = []
@@ -15,11 +17,15 @@ special_things = []
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, t.start)
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка команды') == False:
+        print('error with botan')
 
 
 @bot.message_handler(commands=['help'])
 def show_help(message):
     bot.send_message(message.chat.id, t.help)
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка команды') == False:
+        print('error with botan')
 
 
 @bot.message_handler(commands=['hogart'])
@@ -28,6 +34,8 @@ def hogart(message):
     url_button = types.InlineKeyboardButton(text='Перейти на сайт компании "Хогарт"', url="http://hogart.ru/")
     keyboard.add(url_button)
     bot.send_message(message.chat.id, t.contact, reply_markup=keyboard)
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка команды') == False:
+        print('error with botan')
 
 
 @bot.message_handler(commands=['store'])
@@ -38,6 +46,8 @@ def store(message):
     keyboard.add(button_butovo)
     keyboard.add(button_neva)
     bot.send_message(message.chat.id, "Выберите склад:", reply_markup=keyboard)
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка команды') == False:
+        print('error with botan')
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -73,6 +83,8 @@ def show_art(message):
         if id == message.chat.id:
             return
     special_things.append(message.chat.id)
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка команды') == False:
+        print('error with botan')
 
 
 def articles(message):
@@ -99,18 +111,38 @@ def articles(message):
     special_things.remove(message.chat.id)
 
 
-@bot.inline_handler(lambda query: len(query.query) > 0)
+@bot.inline_handler(lambda query: len(query.query) == 0)
 def query_text(query):
-    if query.query == "contact":
-        t_contact = types.InlineQueryResultArticle(
-            id='1', title="Информация о компании Хогарт",
-            # Описание отображается в подсказке,
-            # message_text - то, что будет отправлено в виде сообщения
-            description="Информация о компании Хогарт",
-            input_message_content=types.InputTextMessageContent(
-                message_text=t.contact)
-        )
-        bot.answer_inline_query(query.id, [t_contact])
+    t_contact = [types.InlineQueryResultArticle(
+        id='1', title="Информация о компании Хогарт",
+        # Описание отображается в подсказке,
+        # message_text - то, что будет отправлено в виде сообщения
+        description="Информация о компании Хогарт",
+        input_message_content=types.InputTextMessageContent(
+            message_text=t.contact)),
+        types.InlineQueryResultArticle(id='2', title="Адрес компании",
+        # Описание отображается в подсказке,
+        # message_text - то, что будет отправлено в виде сообщения
+        description="Адрес центрального офиса в Москве",
+        input_message_content=types.InputTextMessageContent(
+            message_text=t.where_hogart)),
+        types.InlineQueryResultArticle(id='3', title="Склад Бутово",
+        # Описание отображается в подсказке,
+        # message_text - то, что будет отправлено в виде сообщения
+        description="Адрес склада в Бутово",
+        input_message_content=types.InputTextMessageContent(
+            message_text=t.store_butovo)),
+        types.InlineQueryResultArticle(id='4', title="Склад Нева",
+        # Описание отображается в подсказке,
+        # message_text - то, что будет отправлено в виде сообщения
+        description="Адрес склада в Санкт-Петербурге",
+        input_message_content=types.InputTextMessageContent(
+            message_text=t.store_neva)
+        )]
+    bot.answer_inline_query(query.id, t_contact)
+    if botan.track(Botan_key, query.id, '', 'Inline режим') == False:
+        print('error with botan')
+
 
 
 @bot.message_handler(content_types=["text"])
@@ -122,7 +154,9 @@ def hello(message):
     if not(gogo):
         bot.send_message(message.chat.id,
                      'Таки я не понял, чего Вы хотите')
-
+    if botan.track(Botan_key, message.chat.id, message, 'Обработка текста', '' if gogo else 'Нет ответа') == False:
+        print('error with botan')
+    
 
 def answer_text(text,chat_id):
     text_low = text.lower()
@@ -184,14 +218,21 @@ def voice_processing(message):
         # обращение к нашему новому модулю
         text = speech_to_text(bytes=file.content)
         gogo = answer_text(text, message.chat.id)
+        if botan.track(Botan_key, message.chat.id, message, 'Обработка голоса', text = text) == False:
+            print('error with botan')
     except SpeechException:
         # Обработка случая, когда распознавание не удалось
         bot.send_message(message.chat.id,
                          'Не удалось распознать Ваш акцент')
+        if botan.track(Botan_key, message.chat.id, message, 'Обработка голоса', 'Не распознано', text = '""') == False:
+            print('error with botan')                         
     else:
         if not(gogo):
             # Бизнес-логика
             bot.send_message(message.chat.id, 'Вы сказали: "{}"\nЯ не знаю, как на это реагировать :-('.format(text))
+            
+            if botan.track(Botan_key, message.chat.id, message, 'Обработка голоса', 'Нет ответа',  text = text) == False:
+                print('error with botan')
 
 
 if __name__ == '__main__':
