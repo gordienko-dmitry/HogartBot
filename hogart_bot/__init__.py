@@ -1,0 +1,1 @@
+from .frontend import add_handlers_to_bot
